@@ -10,35 +10,99 @@ Description: |
   environment on EC2, and to deploy Phonebook Application on Flask Server after downloading the app code 
   from Github repository.
 Parameters:
- 
+  myVPC:
+    Description: choose your vpc
+    Type: AWS::EC2::VPC::Id
+
+  myDbname: 
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /clarusway/phonebook/dbname
   
 Resources:
 
-  autoScalingGroup:
+  myInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: tansu-phonebook-18-ip
+      Roles: # Required
+        - !Ref mySSMRole
 
-  applicationLoadBalancerListener:
+  mySSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: allow ssm
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+      RoleName: tansu-SSM-phonebook-18
+
+  rDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 0
+      DBInstanceClass: db.t3.micro
+      DBInstanceIdentifier: tansu-phonebook-18
+      DBName: !Ref myDbname # '{{resolve:ssm:/clarusway/phonebook/dbname:1}}'
+      DBSecurityGroups: 
+        - !Ref rDSSecGrp
+      DeleteAutomatedBackups: true
+      Engine: mysql
+      EngineVersion: 8.0.35
+      MasterUserPassword: '{{resolve:ssm-secure:/clarusway/phonebook/password:1}}'
+      MasterUsername: '{{resolve:ssm:/clarusway/phonebook/username:1}}'
+      PubliclyAccessible: true
+    DeletionPolicy: Delete
+
+  rDSSecGrp:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      DBSecurityGroupIngress: # Required
+        - EC2SecurityGroupId: !GetAtt eC2SecGrp.GroupId
+      GroupDescription: allow 3306 from ec2secgrp # Required
+      Tags: 
+        - Key: Name
+          Value: tansu-phonebook-RDS-Sec-18
+
+  eC2SecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: allow ssh from anywhere and http from ALB # Required
+      GroupName: tansu-phonebook-EC2-18
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt aLBSecGrp.GroupId  # !Ref aLBSecGrp
+      VpcId: !Ref myVPC
+
+  aLBSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow ssh and http # Required
+      GroupName: tansu-phonebook-ALB-18
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref myVPC
     
-
-  applicationLoadBalancer:
-    
-
-  launchTemplate:
-   
-
-
-  targetGroup:
-    
-
-  dBInstance:
-    
-
-  wBSecurityGroup:
-   
-
-  webServerSecurityGroup:
-    
-
-  applicationLoadBalancerSecurityGroup:
-    
-Outputs:
   
